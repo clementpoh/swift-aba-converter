@@ -137,6 +137,31 @@ const institutions = [...groups.values()]
   }))
   .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
+const bicIndex: Record<string, number> = {};
+institutions.forEach((institution, index) => {
+  for (const bic of institution.bics) {
+    bicIndex[bic] = index;
+    bicIndex[bic.slice(0, 8)] = index;
+    bicIndex[`${bic.slice(0, 8)}XXX`] = index;
+  }
+});
+
+// Curated head-office codes should resolve to the broadest matching legal-name
+// group when the public branch directory contains duplicate or ambiguous BICs.
+for (const bank of curated) {
+  const key = normalized(bank.bank_name);
+  const preferred = institutions
+    .map((institution, index) => ({ institution, index, key: normalized(institution.displayName) }))
+    .filter((item) => item.key === key || item.key.includes(key) || key.includes(item.key))
+    .sort((a, b) => b.institution.routings.length - a.institution.routings.length)[0];
+  if (!preferred) continue;
+  for (const bic of bank.bics) {
+    bicIndex[bic] = preferred.index;
+    bicIndex[bic.slice(0, 8)] = preferred.index;
+    bicIndex[`${bic.slice(0, 8)}XXX`] = preferred.index;
+  }
+}
+
 const output = {
   dataAsOf: "2018-12",
   generatedAt: new Date().toISOString(),
@@ -162,14 +187,7 @@ const index = {
       institution.routings.map((routing) => [routing.rtn, index]),
     ),
   ),
-  bic: Object.fromEntries(
-    institutions.flatMap((institution, index) =>
-      institution.bics.flatMap((bic) => {
-        const bic8 = bic.slice(0, 8);
-        return [[bic, index], [bic8, index], [`${bic8}XXX`, index]];
-      }),
-    ),
-  ),
+  bic: bicIndex,
 };
 writeFileSync(`${OUTPUT}/index.json`, JSON.stringify(index));
 
