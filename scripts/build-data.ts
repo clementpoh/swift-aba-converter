@@ -105,19 +105,30 @@ for (const routing of routings.values()) {
 
 const bics = JSON.parse(readFileSync(`${RAW}/bic-crosswalk.json`, "utf8")) as BicSource;
 const groupList = [...groups.entries()];
-for (const bank of bics.banks) {
-  const key = normalized(bank.bank_name);
-  if (key.length < 4) continue;
+function attachBics(bankName: string, codes: string[]) {
+  const key = normalized(bankName);
+  if (key.length < 4) return;
   const candidates = groupList.filter(([candidate]) =>
     candidate === key || candidate.includes(key) || key.includes(candidate),
   );
-  if (!candidates.length) continue;
-  const codes = [...new Set(bank.branches.map((branch) => branch.swift_code.toUpperCase()))];
+  if (!candidates.length) return;
   for (const [, candidate] of candidates) {
     candidate.bics = [...new Set([...candidate.bics, ...codes])].sort();
-    if (!candidate.aliases.includes(bank.bank_name)) candidate.aliases.push(bank.bank_name);
+    if (!candidate.aliases.includes(bankName)) candidate.aliases.push(bankName);
   }
 }
+
+for (const bank of bics.banks) {
+  attachBics(
+    bank.bank_name,
+    [...new Set(bank.branches.map((branch) => branch.swift_code.toUpperCase()))],
+  );
+}
+
+const curated = JSON.parse(
+  readFileSync(`${RAW}/curated-bics.json`, "utf8"),
+) as Array<{ bank_name: string; bics: string[] }>;
+for (const bank of curated) attachBics(bank.bank_name, bank.bics);
 
 const institutions = [...groups.values()]
   .map((institution) => ({
