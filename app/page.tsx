@@ -1,3 +1,4 @@
+import { DataFooter } from "@/components/data-footer";
 import { SearchPanel } from "@/components/search-panel";
 import { ArrowLeftRight, ShieldCheck } from "lucide-react";
 
@@ -23,9 +24,7 @@ export default function Home() {
           </p>
         </header>
         <SearchPanel />
-        <footer className="mx-auto mt-16 max-w-3xl border-t border-slate-200 pt-6 text-center text-xs leading-5 text-slate-400">
-          Routing data: Federal Reserve ACH/Fedwire snapshot, December 2018. BIC names: OpenSanctions ISO 9362 reference data (free for non-commercial use; businesses need an OpenSanctions license), confirmed where possible with the GLEIF/SWIFT BIC-to-LEI mapping. Always verify settlement instructions directly with the receiving institution.
-        </footer>
+        <DataFooter />
       </div>
     </main>
   );
