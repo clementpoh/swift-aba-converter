@@ -11,7 +11,7 @@ export default function Home() {
             <span className="grid size-8 place-items-center rounded-lg bg-indigo-600 text-white"><ArrowLeftRight className="size-4" /></span>
             Routebridge
           </div>
-          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500"><ShieldCheck className="size-4 text-emerald-600" />No data leaves your server</span>
+          <span className="flex items-center gap-1.5 text-xs font-medium text-slate-500"><ShieldCheck className="size-4 text-emerald-600" />Queries stay in your browser</span>
         </nav>
         <header className="mx-auto max-w-3xl pb-9 pt-16 text-center sm:pt-24">
           <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-indigo-600">US bank identifier lookup</p>

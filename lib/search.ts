@@ -1,6 +1,6 @@
 import Fuse from "fuse.js";
 import { detectMode, normalizeQuery } from "./detect";
-import { getRoutingData, getSearchIndex } from "./data";
+import { getRoutingData, getSearchIndex, loadRoutingData } from "./data";
 import type { Institution, LookupMode, LookupResponse } from "./types";
 
 let fuse: Fuse<Institution> | undefined;
@@ -21,19 +21,20 @@ function getFuse() {
   return fuse;
 }
 
-export function lookup(query: string, requestedMode: LookupMode = "auto"): LookupResponse {
+export async function lookup(query: string, requestedMode: LookupMode = "auto"): Promise<LookupResponse> {
+  await loadRoutingData();
   const detectedMode = requestedMode === "auto" ? detectMode(query) : requestedMode;
   const value = normalizeQuery(query, detectedMode);
-  const data = getRoutingData();
-  const index = getSearchIndex();
+  const routing = getRoutingData();
+  const searchIndex = getSearchIndex();
   let results: Institution[] = [];
 
   if (detectedMode === "rtn") {
-    const match = index.rtn[value];
-    if (match !== undefined) results = [data.institutions[match]];
+    const match = searchIndex.rtn[value];
+    if (match !== undefined) results = [routing.institutions[match]];
   } else if (detectedMode === "bic") {
-    const match = index.bic[value] ?? index.bic[value.slice(0, 8)];
-    if (match !== undefined) results = [data.institutions[match]];
+    const match = searchIndex.bic[value] ?? searchIndex.bic[value.slice(0, 8)];
+    if (match !== undefined) results = [routing.institutions[match]];
   } else {
     results = getFuse()
       .search(value, { limit: 20 })
@@ -45,6 +46,6 @@ export function lookup(query: string, requestedMode: LookupMode = "auto"): Looku
     detectedMode,
     results,
     total: results.length,
-    dataAsOf: data.dataAsOf,
+    dataAsOf: routing.dataAsOf,
   };
 }

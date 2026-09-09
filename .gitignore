@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# copied onto the static site at build/dev time
+/public/data/
+
 # production
 /build
 

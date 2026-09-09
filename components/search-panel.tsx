@@ -1,13 +1,17 @@
 "use client";
 
-import { AlertCircle, ArrowRight, Database, LoaderCircle, Search } from "lucide-react";
-import { FormEvent, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { AlertCircle, Database, LoaderCircle, Search } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InstitutionCard } from "@/components/institution-card";
 import { ModeTabs } from "@/components/mode-tabs";
+import { isRoutingDataReady, loadRoutingData } from "@/lib/data";
+import { isValidRtn } from "@/lib/detect";
+import { lookup } from "@/lib/search";
 import type { LookupMode, LookupResponse } from "@/lib/types";
+
+const DEBOUNCE_MS = 280;
 
 export function SearchPanel() {
   const [query, setQuery] = useState("");
@@ -16,25 +20,81 @@ export function SearchPanel() {
   const [response, setResponse] = useState<LookupResponse>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const requestId = useRef(0);
 
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    const value = query.trim();
-    if (!value) return;
-    setLoading(true);
+  useEffect(() => {
+    void loadRoutingData().catch(() => {
+      // Lookup surfaces load failures when a query is entered.
+    });
+  }, []);
+
+  const runLookup = useCallback(async (raw: string, requestedMode: LookupMode, submitted = false) => {
+    const value = raw.trim();
+    const id = ++requestId.current;
+
+    if (!value) {
+      setSearched("");
+      setResponse(undefined);
+      setError("");
+      setLoading(false);
+      return;
+    }
+
+    if (value.length > 100) {
+      setSearched(value);
+      setResponse(undefined);
+      setError("Searches are limited to 100 characters.");
+      setLoading(false);
+      return;
+    }
+
+    if (!submitted && shouldWaitForMoreInput(value, requestedMode)) {
+      setSearched("");
+      setResponse(undefined);
+      setError("");
+      setLoading(false);
+      return;
+    }
+
+    if (requestedMode === "rtn" && !isValidRtn(value)) {
+      setSearched(value);
+      setResponse(undefined);
+      setError("That is not a valid 9-digit ABA routing number.");
+      setLoading(false);
+      return;
+    }
+
+    if (!isRoutingDataReady()) setLoading(true);
     setError("");
     setSearched(value);
+
     try {
-      const result = await fetch(`/api/lookup?q=${encodeURIComponent(value)}&mode=${mode}`);
-      const body = await result.json();
-      if (!result.ok) throw new Error(body.error || "Lookup failed.");
+      const body = await lookup(value, requestedMode);
+      if (id !== requestId.current) return;
       setResponse(body);
     } catch (reason) {
+      if (id !== requestId.current) return;
       setResponse(undefined);
       setError(reason instanceof Error ? reason.message : "Lookup failed.");
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!query.trim()) {
+      void runLookup("", mode);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void runLookup(query, mode);
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [query, mode, runLookup]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    void runLookup(query, mode, true);
   }
 
   return (
@@ -45,16 +105,25 @@ export function SearchPanel() {
             <ModeTabs value={mode} onChange={setMode} />
             <span className="hidden items-center gap-1.5 text-xs font-medium text-slate-400 sm:flex"><Database className="size-3.5" />Offline data</span>
           </div>
-          <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
+          <form onSubmit={submit}>
+            <div className="relative">
               <Search className="pointer-events-none absolute left-4 top-3.5 size-5 text-slate-400" />
-              <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="CHASUS33, 021000021, or Chase…" className="pl-12" maxLength={100} autoFocus aria-label="BIC, routing number, or bank name" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="CHASUS33, 021000021, or Chase…"
+                className="pl-12 pr-12"
+                maxLength={100}
+                autoFocus
+                autoComplete="off"
+                spellCheck={false}
+                enterKeyHint="search"
+                aria-label="BIC, routing number, or bank name"
+              />
+              {loading && <LoaderCircle className="pointer-events-none absolute right-4 top-3.5 size-5 animate-spin text-indigo-500" aria-hidden />}
             </div>
-            <Button type="submit" disabled={!query.trim() || loading} className="h-12 px-6">
-              {loading ? <LoaderCircle className="size-4 animate-spin" /> : <>Convert <ArrowRight className="size-4" /></>}
-            </Button>
           </form>
-          <p className="mt-3 text-xs leading-relaxed text-slate-400">Paste an 8–11 character SWIFT/BIC, a 9-digit ABA routing number, or search by institution name.</p>
+          <p className="mt-3 text-xs leading-relaxed text-slate-400">Paste an 8–11 character SWIFT/BIC, a 9-digit ABA routing number, or search by institution name. Results update as you type.</p>
         </CardContent>
       </Card>
 
@@ -71,6 +140,14 @@ export function SearchPanel() {
       </div>
     </div>
   );
+}
+
+function shouldWaitForMoreInput(value: string, mode: LookupMode) {
+  if (mode === "rtn") return /^\d{1,8}$/.test(value);
+  if (mode === "bic") return value.length < 8;
+  if (mode === "name") return value.length < 2;
+  if (/^\d{1,8}$/.test(value)) return true;
+  return value.length < 2;
 }
 
 function Notice({ text }: { text: string }) {
