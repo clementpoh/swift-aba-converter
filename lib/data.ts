@@ -1,16 +1,13 @@
-import { gunzipSync } from "node:zlib";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import type { Institution } from "./types";
 
-type RoutingData = {
+export type RoutingData = {
   dataAsOf: string;
   generatedAt: string;
   stats: { institutions: number; routings: number; bics: number };
   institutions: Institution[];
 };
 
-type SearchIndex = {
+export type SearchIndex = {
   dataAsOf: string;
   stats: RoutingData["stats"];
   rtn: Record<string, number>;
@@ -19,20 +16,59 @@ type SearchIndex = {
 
 let data: RoutingData | undefined;
 let index: SearchIndex | undefined;
+let loadPromise: Promise<RoutingData> | undefined;
+
+function publicUrl(path: string) {
+  const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
+
+async function fetchJson(url: string) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Could not load the offline routing directory.");
+  }
+  return response.json();
+}
+
+async function fetchGzipJson(url: string) {
+  const response = await fetch(url);
+  if (!response.ok || !response.body) {
+    throw new Error("Could not load the offline routing directory.");
+  }
+  const decompressed = response.body.pipeThrough(new DecompressionStream("gzip"));
+  return new Response(decompressed).json();
+}
+
+export function isRoutingDataReady() {
+  return data !== undefined && index !== undefined;
+}
+
+export async function loadRoutingData() {
+  if (data && index) return data;
+  if (!loadPromise) {
+    loadPromise = (async () => {
+      const [routing, searchIndex] = await Promise.all([
+        fetchGzipJson(publicUrl("/data/routing.json.gz")) as Promise<RoutingData>,
+        fetchJson(publicUrl("/data/index.json")) as Promise<SearchIndex>,
+      ]);
+      data = routing;
+      index = searchIndex;
+      return routing;
+    })().catch((reason) => {
+      loadPromise = undefined;
+      throw reason;
+    });
+  }
+  return loadPromise;
+}
 
 export function getRoutingData() {
-  if (!data) {
-    const compressed = readFileSync(path.join(process.cwd(), "data/routing.json.gz"));
-    data = JSON.parse(gunzipSync(compressed).toString("utf8")) as RoutingData;
-  }
+  if (!data) throw new Error("Routing data not loaded");
   return data;
 }
 
 export function getSearchIndex() {
-  if (!index) {
-    index = JSON.parse(
-      readFileSync(path.join(process.cwd(), "data/index.json"), "utf8"),
-    ) as SearchIndex;
-  }
+  if (!index) throw new Error("Routing data not loaded");
   return index;
 }

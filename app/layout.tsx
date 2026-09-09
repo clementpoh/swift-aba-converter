@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://clementpoh.github.io/swift-aba-converter"),
   title: "Routebridge — SWIFT/BIC ↔ ABA/ACH",
   description: "Convert between SWIFT/BIC codes, US routing numbers, and bank names using a fully offline directory.",
 };
