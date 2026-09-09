@@ -40,10 +40,11 @@ route at runtime: `data/routing.json.gz` and `data/index.json` are copied into
 Push to `main` (or run the **Deploy to GitHub Pages** workflow) to publish.
 
 1. In the GitHub repo: **Settings → Pages → Source: GitHub Actions**.
-2. The workflow `.github/workflows/pages.yml` runs `GITHUB_PAGES=true npm run build`,
-   which sets `basePath` / `assetPrefix` to `/swift-aba-converter` so assets
-   load from the project Pages URL.
-3. The `out/` directory is uploaded and deployed with `actions/deploy-pages`.
+2. Pull requests run the same `GITHUB_PAGES=true npm run build` check without
+   publishing. Pushes to `main` upload `out/` and deploy with
+   `actions/deploy-pages`.
+3. The Pages build sets `basePath` / `assetPrefix` to `/swift-aba-converter`
+   so assets load from the project Pages URL.
 
 After the first successful deploy the site is served at:
 
