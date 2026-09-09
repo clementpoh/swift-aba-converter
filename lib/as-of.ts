@@ -18,7 +18,12 @@ export function formatAsOfDate(value: string): string {
   });
 }
 
-export function directoryAsOf(data: { dataAsOf: string; routingAsOf?: string; bicAsOf?: string }) {
+export type DirectoryAsOf = {
+  routingAsOf?: string;
+  bicAsOf?: string;
+};
+
+export function directoryAsOf(data: { dataAsOf: string; routingAsOf?: string; bicAsOf?: string }): DirectoryAsOf {
   return {
     routingAsOf: data.routingAsOf ?? data.dataAsOf,
     bicAsOf: data.bicAsOf,

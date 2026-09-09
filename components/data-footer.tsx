@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { dataAttribution, directoryAsOf } from "@/lib/as-of";
+import { dataAttribution, directoryAsOf, type DirectoryAsOf } from "@/lib/as-of";
 import { loadRoutingData } from "@/lib/data";
 
-export function DataFooter() {
-  const [asOf, setAsOf] = useState<{ routingAsOf?: string; bicAsOf?: string }>({});
+export function DataFooter({ initialAsOf }: { initialAsOf?: DirectoryAsOf }) {
+  const [asOf, setAsOf] = useState<DirectoryAsOf>(initialAsOf ?? {});
 
   useEffect(() => {
     void loadRoutingData()
