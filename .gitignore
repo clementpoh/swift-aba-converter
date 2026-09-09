@@ -20,6 +20,12 @@
 # copied onto the static site at build/dev time
 /public/data/
 
+# downloaded bulk BIC sources (regenerate with npm run fetch:bic)
+/data/raw/.cache/
+
+# uncompressed routing snapshot written by build:data
+/data/routing.json
+
 # production
 /build
 

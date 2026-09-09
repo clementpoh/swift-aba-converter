@@ -10,6 +10,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "fetch:bic": "tsx scripts/fetch-bic-sources.ts",
     "build:data": "tsx scripts/build-data.ts && npm run copy-data"
   },
   "dependencies": {

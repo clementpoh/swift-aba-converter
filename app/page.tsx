@@ -24,7 +24,7 @@ export default function Home() {
         </header>
         <SearchPanel />
         <footer className="mx-auto mt-16 max-w-3xl border-t border-slate-200 pt-6 text-center text-xs leading-5 text-slate-400">
-          Routing data: Federal Reserve snapshot, December 2018. BIC reference data is independently sourced. Always verify settlement instructions directly with the receiving institution.
+          Routing data: Federal Reserve ACH/Fedwire snapshot, December 2018. BIC names: OpenSanctions ISO 9362 reference data (free for non-commercial use; businesses need an OpenSanctions license), confirmed where possible with the GLEIF/SWIFT BIC-to-LEI mapping. Always verify settlement instructions directly with the receiving institution.
         </footer>
       </div>
     </main>

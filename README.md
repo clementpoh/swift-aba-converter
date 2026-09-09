@@ -17,11 +17,19 @@ npm run dev
 Open [http://localhost:34917](http://localhost:34917). Lookups run in the
 browser against the committed directory; results update as you type.
 
-To rebuild the committed indexes after replacing the raw source files:
+To refresh BIC reference data from OpenSanctions and GLEIF, then rebuild the
+committed indexes:
 
 ```bash
+npm run fetch:bic
 npm run build:data
 ```
+
+`fetch:bic` downloads the latest OpenSanctions ISO 9362 FollowTheMoney dump and
+the current GLEIF BIC-to-LEI zip, then writes a compact US-only file at
+`data/raw/bic-us.json`. Bulk downloads stay in `data/raw/.cache/` (gitignored).
+`build:data` joins that file to the December 2018 Fed ACH/Fedwire snapshots and
+regenerates `data/index.json` and `data/routing.json.gz`.
 
 ## Try these
 
@@ -75,21 +83,46 @@ locally.
   Reserve snapshots preserved by
   [moov-io/fed](https://github.com/moov-io/fed). The Federal Reserve stopped
   publicly distributing complete files in December 2018.
-- BIC reference names come from the public
-  [lstrihic/swift-bic-codes](https://github.com/lstrihic/swift-bic-codes)
-  US directory and are linked to routing institutions by normalized legal
-  name. Branch BICs are included where a confident institution-name match
-  exists.
+- BIC legal names come from the monthly
+  [OpenSanctions ISO 9362 BIC](https://www.opensanctions.org/datasets/iso9362_bic/)
+  reference dataset (derived from official SWIFT/ISO PDFs). This app keeps US
+  BICs (ISO country code `US` in positions 5–6) and links them to routing
+  institutions by normalized legal name. OpenSanctions omits branch-level
+  BIC11s; head-office BIC8 / `XXX` forms are indexed.
+- Where a BIC appears in the monthly
+  [GLEIF/SWIFT BIC-to-LEI relationship file](https://www.gleif.org/en/lei-data/lei-mapping/download-bic-to-lei-relationship-files),
+  the same BIC8 family is treated as confirmed and any 11-character GLEIF
+  variant of that BIC8 is kept. LEI codes are not used to invent ABA links.
+- `data/raw/curated-bics.json` still overrides major-bank head-office codes
+  when the name match is ambiguous.
 
-The generated snapshot contains roughly 19,000 valid routing numbers and
-10,000 matched US BIC records. Replace `data/raw/FedACHdir.txt` and
-`data/raw/fpddir.txt` with licensed, current fixed-width files to refresh
-routing data.
+The generated snapshot contains roughly 19,000 valid routing numbers. BIC
+coverage is the count of US codes that fuzzy-match a Fed legal name, plus
+curated overrides — not a complete SWIFT directory. Replace
+`data/raw/FedACHdir.txt` and `data/raw/fpddir.txt` with licensed, current
+fixed-width files to refresh routing data. Re-run `npm run fetch:bic` to
+refresh BIC names.
+
+### Licensing and attribution
+
+- **Federal Reserve / moov-io/fed** — historical public ACH and Fedwire
+  participant files, December 2018.
+- **OpenSanctions ISO 9362 BIC** — free for non-commercial use. Businesses
+  must obtain a [data license](https://www.opensanctions.org/licensing/) from
+  OpenSanctions. This public GitHub Pages reference app uses the dataset
+  under that non-commercial terms.
+- **GLEIF/SWIFT BIC-to-LEI mapping** — published monthly as an open
+  relationship file. Use is subject to the
+  [BIC/LEI Mapping Table License Agreement](https://www.gleif.org/en/lei-data/lei-mapping/download-bic-to-lei-relationship-files).
+  SWIFT © and database rights in the mapping table (see the GLEIF file date,
+  currently August 2026). All rights reserved. The mapping table was developed
+  by SWIFT.
 
 ## Important limitation
 
 This is a reference and discovery tool, **not a source of production
 settlement instructions**. The routing snapshot is historical, name-based BIC
-linkage can be incomplete, and mergers or renumbering after 2018 are not
-represented. Always verify the exact ACH, wire, and SWIFT instructions with
-the receiving financial institution before sending funds.
+linkage can be incomplete, OpenSanctions BIC data is not licensed for
+unlicensed commercial screening products, and mergers or renumbering after
+2018 are not represented. Always verify the exact ACH, wire, and SWIFT
+instructions with the receiving financial institution before sending funds.

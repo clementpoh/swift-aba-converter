@@ -4,11 +4,18 @@ import type { Institution, RoutingEntry, Service } from "../lib/types";
 
 const RAW = "data/raw";
 const OUTPUT = "data";
+const ROUTING_AS_OF = "2018-12";
 
 type BicSource = {
-  banks: Array<{
-    bank_name: string;
-    branches: Array<{ swift_code: string }>;
+  bicAsOf?: string;
+  opensanctions?: { lastExport?: string; version?: string };
+  gleif?: { uploadedAt?: string; fileName?: string };
+  stats?: { bic8s?: number; gleifConfirmed?: number };
+  institutions: Array<{
+    name: string;
+    aliases?: string[];
+    bics: string[];
+    gleifConfirmed?: boolean;
   }>;
 };
 
@@ -46,6 +53,12 @@ function validRtn(rtn: string) {
       10 ===
     0
   );
+}
+
+function yearMonth(value: string | undefined, fallback: string) {
+  if (!value) return fallback;
+  const match = value.match(/^(\d{4}-\d{2})/);
+  return match ? match[1] : fallback;
 }
 
 const routings = new Map<string, RoutingEntry>();
@@ -103,26 +116,30 @@ for (const routing of routings.values()) {
   }
 }
 
-const bics = JSON.parse(readFileSync(`${RAW}/bic-crosswalk.json`, "utf8")) as BicSource;
+const bics = JSON.parse(readFileSync(`${RAW}/bic-us.json`, "utf8")) as BicSource;
 const groupList = [...groups.entries()];
-function attachBics(bankName: string, codes: string[]) {
+const gleifConfirmedBic8s = new Set<string>();
+
+function attachBics(bankName: string, codes: string[], gleifConfirmed = false) {
   const key = normalized(bankName);
   if (key.length < 4) return;
   const candidates = groupList.filter(([candidate]) =>
     candidate === key || candidate.includes(key) || key.includes(candidate),
   );
   if (!candidates.length) return;
+  const normalizedCodes = [...new Set(codes.map((code) => code.toUpperCase()).filter(Boolean))];
   for (const [, candidate] of candidates) {
-    candidate.bics = [...new Set([...candidate.bics, ...codes])].sort();
+    candidate.bics = [...new Set([...candidate.bics, ...normalizedCodes])].sort();
     if (!candidate.aliases.includes(bankName)) candidate.aliases.push(bankName);
+  }
+  if (gleifConfirmed) {
+    for (const code of normalizedCodes) gleifConfirmedBic8s.add(code.slice(0, 8));
   }
 }
 
-for (const bank of bics.banks) {
-  attachBics(
-    bank.bank_name,
-    [...new Set(bank.branches.map((branch) => branch.swift_code.toUpperCase()))],
-  );
+for (const bank of bics.institutions) {
+  const names = [bank.name, ...(bank.aliases ?? [])];
+  for (const name of names) attachBics(name, bank.bics, bank.gleifConfirmed);
 }
 
 const curated = JSON.parse(
@@ -162,13 +179,28 @@ for (const bank of curated) {
   }
 }
 
+const matchedBics = new Set(institutions.flatMap((institution) => institution.bics));
+const bicAsOf = bics.bicAsOf ?? yearMonth(bics.opensanctions?.lastExport, "2026-09");
 const output = {
-  dataAsOf: "2018-12",
+  dataAsOf: ROUTING_AS_OF,
+  routingAsOf: ROUTING_AS_OF,
+  bicAsOf,
   generatedAt: new Date().toISOString(),
+  sources: {
+    routing: { asOf: ROUTING_AS_OF, files: ["FedACHdir.txt", "fpddir.txt"] },
+    bic: {
+      asOf: bicAsOf,
+      opensanctionsVersion: bics.opensanctions?.version,
+      gleifFile: bics.gleif?.fileName,
+    },
+  },
   stats: {
     institutions: institutions.length,
     routings: routings.size,
-    bics: new Set(institutions.flatMap((institution) => institution.bics)).size,
+    bics: matchedBics.size,
+    bic8s: new Set([...matchedBics].map((bic) => bic.slice(0, 8))).size,
+    sourceBic8s: bics.stats?.bic8s,
+    gleifConfirmedBic8s: gleifConfirmedBic8s.size,
   },
   institutions,
 };
@@ -181,6 +213,8 @@ writeFileSync(
 
 const index = {
   dataAsOf: output.dataAsOf,
+  routingAsOf: output.routingAsOf,
+  bicAsOf: output.bicAsOf,
   stats: output.stats,
   rtn: Object.fromEntries(
     institutions.flatMap((institution, index) =>
@@ -191,6 +225,20 @@ const index = {
 };
 writeFileSync(`${OUTPUT}/index.json`, JSON.stringify(index));
 
+function requireLookup(label: string, institution: Institution | undefined, needle: string) {
+  if (!institution) throw new Error(`Expected ${label} to resolve`);
+  if (!institution.displayName.toLowerCase().includes(needle) && !institution.aliases.some((alias) => alias.toLowerCase().includes(needle))) {
+    throw new Error(`Expected ${label} to resolve to a ${needle} institution, got ${institution.displayName}`);
+  }
+}
+
+requireLookup("CHASUS33", institutions[bicIndex.CHASUS33], "chase");
+requireLookup("BOFAUS3N", institutions[bicIndex.BOFAUS3N], "america");
+requireLookup("CITIUS33", institutions[bicIndex.CITIUS33], "citi");
+requireLookup("021000021", institutions[index.rtn["021000021"]], "chase");
+const wells = institutions.find((institution) => institution.displayName.toLowerCase().includes("wells fargo") && institution.bics.some((bic) => bic.startsWith("WFBI")));
+if (!wells) throw new Error("Expected a Wells Fargo institution with WFBI BICs");
+
 console.log(
-  `Built ${output.stats.institutions} institutions, ${output.stats.routings} RTNs, ${output.stats.bics} BICs`,
+  `Built ${output.stats.institutions} institutions, ${output.stats.routings} RTNs, ${output.stats.bics} BICs (${output.stats.bic8s} unique BIC8s; routing ${output.routingAsOf}, BIC ${output.bicAsOf})`,
 );

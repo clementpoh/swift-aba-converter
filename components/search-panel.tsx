@@ -20,12 +20,19 @@ export function SearchPanel() {
   const [response, setResponse] = useState<LookupResponse>();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [asOfLabel, setAsOfLabel] = useState("Offline data");
   const requestId = useRef(0);
 
   useEffect(() => {
-    void loadRoutingData().catch(() => {
-      // Lookup surfaces load failures when a query is entered.
-    });
+    void loadRoutingData()
+      .then((data) => {
+        const routing = data.routingAsOf ?? data.dataAsOf;
+        const bic = data.bicAsOf;
+        setAsOfLabel(bic ? `ACH ${routing} · BIC ${bic}` : `ACH ${routing}`);
+      })
+      .catch(() => {
+        // Lookup surfaces load failures when a query is entered.
+      });
   }, []);
 
   const runLookup = useCallback(async (raw: string, requestedMode: LookupMode, submitted = false) => {
@@ -103,7 +110,7 @@ export function SearchPanel() {
         <CardContent>
           <div className="mb-4 flex items-center justify-between gap-3">
             <ModeTabs value={mode} onChange={setMode} />
-            <span className="hidden items-center gap-1.5 text-xs font-medium text-slate-400 sm:flex"><Database className="size-3.5" />Offline data</span>
+            <span className="hidden items-center gap-1.5 text-xs font-medium text-slate-400 sm:flex"><Database className="size-3.5" />{asOfLabel}</span>
           </div>
           <form onSubmit={submit}>
             <div className="relative">
