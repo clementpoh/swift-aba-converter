@@ -1,7 +1,21 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { DataFooter } from "@/components/data-footer";
 import { SearchPanel } from "@/components/search-panel";
+import { directoryAsOf } from "@/lib/as-of";
 import { ArrowLeftRight, ShieldCheck } from "lucide-react";
 
+function committedAsOf() {
+  const index = JSON.parse(readFileSync(join(process.cwd(), "data/index.json"), "utf8")) as {
+    dataAsOf: string;
+    routingAsOf?: string;
+    bicAsOf?: string;
+  };
+  return directoryAsOf(index);
+}
+
 export default function Home() {
+  const asOf = committedAsOf();
   return (
     <main className="min-h-screen overflow-hidden">
       <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[540px] bg-[radial-gradient(circle_at_50%_-10%,#c7d2fe_0%,#eef2ff_34%,transparent_72%)]" />
@@ -23,9 +37,7 @@ export default function Home() {
           </p>
         </header>
         <SearchPanel />
-        <footer className="mx-auto mt-16 max-w-3xl border-t border-slate-200 pt-6 text-center text-xs leading-5 text-slate-400">
-          Routing data: Federal Reserve ACH/Fedwire snapshot, December 2018. BIC names: OpenSanctions ISO 9362 reference data (free for non-commercial use; businesses need an OpenSanctions license), confirmed where possible with the GLEIF/SWIFT BIC-to-LEI mapping. Always verify settlement instructions directly with the receiving institution.
-        </footer>
+        <DataFooter initialAsOf={asOf} />
       </div>
     </main>
   );
