@@ -1,15 +1,28 @@
 import type { Institution } from "./types";
 
+export type RoutingStats = {
+  institutions: number;
+  routings: number;
+  bics: number;
+  bic8s?: number;
+  sourceBic8s?: number;
+  gleifConfirmedBic8s?: number;
+};
+
 export type RoutingData = {
   dataAsOf: string;
+  routingAsOf?: string;
+  bicAsOf?: string;
   generatedAt: string;
-  stats: { institutions: number; routings: number; bics: number };
+  stats: RoutingStats;
   institutions: Institution[];
 };
 
 export type SearchIndex = {
   dataAsOf: string;
-  stats: RoutingData["stats"];
+  routingAsOf?: string;
+  bicAsOf?: string;
+  stats: RoutingStats;
   rtn: Record<string, number>;
   bic: Record<string, number>;
 };

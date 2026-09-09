@@ -47,5 +47,7 @@ export async function lookup(query: string, requestedMode: LookupMode = "auto"):
     results,
     total: results.length,
     dataAsOf: routing.dataAsOf,
+    routingAsOf: routing.routingAsOf,
+    bicAsOf: routing.bicAsOf,
   };
 }

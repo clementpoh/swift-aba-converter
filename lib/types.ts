@@ -26,4 +26,6 @@ export type LookupResponse = {
   results: Institution[];
   total: number;
   dataAsOf: string;
+  routingAsOf?: string;
+  bicAsOf?: string;
 };
