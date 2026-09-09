@@ -5,7 +5,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InstitutionCard } from "@/components/institution-card";
-import { ModeTabs } from "@/components/mode-tabs";
+import { MODE_LABELS, ModeTabs } from "@/components/mode-tabs";
 import { isRoutingDataReady, loadRoutingData } from "@/lib/data";
 import { isValidRtn } from "@/lib/detect";
 import { lookup } from "@/lib/search";
@@ -140,7 +140,7 @@ export function SearchPanel() {
         {!loading && response?.results.length === 0 && <Notice text={`No US bank matched “${searched}”.${response.detectedMode === "bic" ? " The offline BIC directory may not include this code." : ""}`} />}
         {!loading && response && response.results.length > 0 && (
           <>
-            <p className="px-1 text-sm text-slate-500">Found {response.total} match{response.total === 1 ? "" : "es"} · detected as <span className="font-semibold uppercase text-slate-700">{response.detectedMode}</span></p>
+            <p className="px-1 text-sm text-slate-500">Found {response.total} match{response.total === 1 ? "" : "es"} · detected as <span className="font-semibold text-slate-700">{MODE_LABELS[response.detectedMode]}</span></p>
             {response.results.map((institution) => <InstitutionCard key={institution.slug} institution={institution} />)}
           </>
         )}
